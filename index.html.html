@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>EndoVoz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0d;
+    --surface: #111a15;
+    --surface2: #162010;
+    --border: #1e3025;
+    --accent: #2dff7a;
+    --accent-dim: #1a9947;
+    --accent-glow: rgba(45,255,122,0.15);
+    --text: #e8f5ec;
+    --text-dim: #6b8f76;
+    --warn: #ff8c42;
+    --error: #ff4d6d;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Fraunces', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(45,255,122,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 80% 20%, rgba(45,255,122,0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+  }
+  .logo em { color: var(--accent); font-style: italic; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .settings-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 18px; cursor: pointer; padding: 4px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-dim);
+    box-shadow: 0 0 6px var(--accent-dim);
+  }
+  .status-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: blink 1s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Setup Screen ── */
+  .setup-screen {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 20px;
+    margin-bottom: 20px;
+  }
+
+  .setup-title {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 300;
+    margin-bottom: 6px;
+  }
+
+  .setup-subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .input-group { margin-bottom: 14px; }
+
+  .input-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .input-field {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-field:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 2px var(--accent-glow); }
+  .input-field::placeholder { color: var(--text-dim); }
+
+  .btn-setup {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 6px;
+  }
+  .btn-setup:hover { background: #3dff8a; }
+
+  .test-result {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    display: none;
+  }
+  .test-result.ok { background: rgba(45,255,122,0.08); border: 1px solid var(--accent-dim); color: var(--accent); }
+  .test-result.fail { background: rgba(255,77,109,0.08); border: 1px solid var(--error); color: var(--error); }
+
+  /* ── Main Screen ── */
+  .main-screen { display: none; }
+
+  .config-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 11px;
+  }
+
+  .config-info { color: var(--text-dim); }
+  .config-info span { color: var(--accent-dim); }
+
+  .change-btn {
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-dim); cursor: pointer;
+    letter-spacing: 1px; text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .change-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+
+  /* ── Record ── */
+  .record-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .record-btn {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    outline: none;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .record-btn::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    opacity: 0.4;
+    transition: all 0.3s;
+  }
+
+  .record-btn.recording {
+    border-color: var(--accent);
+    box-shadow: 0 0 35px var(--accent-glow), inset 0 0 20px var(--accent-glow);
+    animation: rec-pulse 1.5s ease-in-out infinite;
+  }
+
+  .record-btn.recording::before {
+    inset: -14px;
+    border-color: var(--accent-dim);
+    opacity: 0.7;
+    animation: ring-expand 1.5s ease-in-out infinite;
+  }
+
+  @keyframes rec-pulse {
+    0%,100%{box-shadow:0 0 25px var(--accent-glow),inset 0 0 15px var(--accent-glow)}
+    50%{box-shadow:0 0 50px rgba(45,255,122,0.25),inset 0 0 25px rgba(45,255,122,0.1)}
+  }
+
+  @keyframes ring-expand {
+    0%,100%{inset:-12px;opacity:0.5}
+    50%{inset:-18px;opacity:0.2}
+  }
+
+  .record-label {
+    margin-top: 14px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.3s;
+    text-align: center;
+  }
+
+  .record-btn.recording ~ .record-label { color: var(--accent); }
+
+  /* ── Waveform ── */
+  .waveform {
+    display: flex; align-items: center; justify-content: center;
+    gap: 3px; height: 22px; margin-bottom: 16px;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .waveform.active { opacity: 1; }
+  .wave-bar {
+    width: 3px; border-radius: 2px;
+    background: var(--accent);
+    animation: wave 0.8s ease-in-out infinite;
+  }
+  .wave-bar:nth-child(1){animation-delay:0s}
+  .wave-bar:nth-child(2){animation-delay:.1s}
+  .wave-bar:nth-child(3){animation-delay:.2s}
+  .wave-bar:nth-child(4){animation-delay:.15s}
+  .wave-bar:nth-child(5){animation-delay:.05s}
+  .wave-bar:nth-child(6){animation-delay:.25s}
+  .wave-bar:nth-child(7){animation-delay:.1s}
+  @keyframes wave { 0%,100%{height:3px} 50%{height:18px} }
+
+  /* ── Transcript ── */
+  .section-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 8px;
+  }
+
+  .transcript-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 70px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-bottom: 14px;
+    transition: border-color 0.3s;
+  }
+  .transcript-box.has-text { color: var(--text); font-style: normal; border-color: var(--border); }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-primary:hover { background: #3dff8a; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-secondary:hover { background: var(--accent-glow); box-shadow: 0 0 20px var(--accent-glow); }
+  .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── Fields ── */
+  .fields-section { margin-top: 24px; display: none; }
+
+  .fields-header {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .fields-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+
+  .field-name { font-size: 11px; color: var(--text-dim); line-height: 1.3; }
+
+  .field-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+  .field-input:focus { border-color: var(--accent-dim); }
+  .field-input.empty { color: var(--text-dim); font-style: italic; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 16px; right: 16px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transform: translateY(80px);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100;
+    text-align: center;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--error); color: var(--error); }
+
+  .spinner {
+    display: inline-block;
+    width: 13px; height: 13px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .spinner-light {
+    display: inline-block;
+    width: 13px; height: 13px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">Endo<em>Voz</em></div>
+    <div class="header-right">
+      <button class="settings-btn" onclick="showSetup()" title="Configurações">⚙</button>
+      <div class="status-dot" id="statusDot"></div>
+    </div>
+  </div>
+
+  <!-- Setup Screen -->
+  <div class="setup-screen" id="setupScreen">
+    <div class="setup-title">Configuração inicial</div>
+    <div class="setup-subtitle">Só precisas de fazer isto uma vez. Os dados ficam guardados no teu telemóvel.</div>
+
+    <div class="input-group">
+      <label class="input-label">Anthropic API Key</label>
+      <input type="password" class="input-field" id="apiKey" placeholder="sk-ant-..." autocomplete="off" />
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Google Apps Script URL</label>
+      <input type="text" class="input-field" id="sheetsUrl" placeholder="https://script.google.com/macros/s/..." />
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Token de segurança</label>
+      <input type="password" class="input-field" id="secToken" placeholder="A palavra-passe que definiste no Code.gs" />
+    </div>
+
+    <button class="btn-setup" onclick="testAndSave()">
+      <span id="testBtnText">✦ Testar e guardar</span>
+    </button>
+
+    <div class="test-result" id="testResult"></div>
+  </div>
+
+  <!-- Main Screen -->
+  <div class="main-screen" id="mainScreen">
+
+    <div class="config-bar">
+      <div class="config-info">Sheet: <span id="urlPreview">—</span></div>
+      <button class="change-btn" onclick="showSetup()">Alterar</button>
+    </div>
+
+    <!-- Record -->
+    <div class="record-section">
+      <button class="record-btn" id="recordBtn" onclick="toggleRecording()">🎙️</button>
+      <div class="record-label" id="recordLabel">Toca para ditar</div>
+    </div>
+
+    <!-- Waveform -->
+    <div class="waveform" id="waveform">
+      <div class="wave-bar" style="height:4px"></div>
+      <div class="wave-bar" style="height:10px"></div>
+      <div class="wave-bar" style="height:18px"></div>
+      <div class="wave-bar" style="height:14px"></div>
+      <div class="wave-bar" style="height:8px"></div>
+      <div class="wave-bar" style="height:16px"></div>
+      <div class="wave-bar" style="height:4px"></div>
+    </div>
+
+    <!-- Transcript -->
+    <div class="section-label">Transcrição</div>
+    <div class="transcript-box" id="transcriptBox">
+      Dita o procedimento após carregar no microfone...
+    </div>
+
+    <!-- Interpret -->
+    <button class="btn-primary" id="interpretBtn" onclick="interpretTranscript()" disabled>
+      <span id="interpretText">✦ Interpretar com IA</span>
+    </button>
+
+    <!-- Fields -->
+    <div class="fields-section" id="fieldsSection">
+      <div class="fields-header">Campos preenchidos</div>
+      <div id="fieldsContainer"></div>
+      <div style="height:14px"></div>
+      <button class="btn-secondary" id="sendBtn" onclick="sendToSheet()">
+        <span id="sendText">↑ Guardar na Sheet</span>
+      </button>
+      <div style="height:20px"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Fields definition ────────────────────────────────────────
+const FIELDS = [
+  { key: 'data', label: 'Data' },
+  { key: 'nsc', label: 'NSC' },
+  { key: 'nome', label: 'Nome' },
+  { key: 'idade', label: 'Idade' },
+  { key: 'endoscopista', label: 'Endoscopista' },
+  { key: 'origem', label: 'Origem' },
+  { key: 'orgao', label: 'Órgão' },
+  { key: 'localizacao', label: 'Localização' },
+  { key: 'tamanho', label: 'Tamanho' },
+  { key: 'parede', label: 'Parede' },
+  { key: 'morfologia_paris', label: 'Paris' },
+  { key: 'classificacao_nice', label: 'NICE' },
+  { key: 'classificacao_jnet', label: 'JNET' },
+  { key: 'lst', label: 'LST', options: ['G-homogéneo','G-misto','NG-flat','NG-pseudodepressed','N/A'] },
+  { key: 'tecnica_resseccao', label: 'Técnica', options: ['EMR hot','EMR cold','ESD','Polipectomia clássica','Técnica híbrida','FTRD'] },
+  { key: 'tentativa_elevacao', label: 'Tent. elevação', options: ['Sim','Não'] },
+  { key: 'elevacao_satisfatoria', label: 'Elevação', options: ['Sim','Não','Parcial'] },
+  { key: 'solucao_elevacao', label: 'Solução elev.' },
+  { key: 'ansa', label: 'Ansa', options: ['A frio','A quente'] },
+  { key: 'fio', label: 'Fio', options: ['Monofilamento','Trançada'] },
+  { key: 'fragmentos', label: 'Fragmentos' },
+  { key: 'profundidade_escara', label: 'Escara DMI' },
+  { key: 'fulguracao_bordos', label: 'Fulguração', options: ['Sim','Não'] },
+  { key: 'encerramento_escara', label: 'Encerramento', options: ['Total','Parcial','Não'] },
+  { key: 'lesao_muscular', label: 'Lesão muscular', options: ['Sim','Não'] },
+  { key: 'perfuracao', label: 'Perfuração', options: ['Sim','Não'] },
+  { key: 'frags_recuperados', label: 'Frags. recup.', options: ['Sim','Não','Parcial'] },
+  { key: 'histologia', label: 'Histologia' },
+  { key: 'primeira_revisao', label: '1ª revisão', options: ['<3 meses','3-6 meses','>6 meses','6-12 meses','>12 meses'] },
+  { key: 'lesao_residual_1', label: 'Lesão residual', options: ['Sim','Não'] },
+  { key: 'tamanho_residual', label: 'Tam. residual' },
+  { key: 'tecnica_residual', label: 'Técnica resid.' },
+  { key: 'histologia_1_revisao', label: 'Histo. 1ª rev.' },
+  { key: 'segunda_revisao', label: '2ª revisão' },
+];
+
+let isRecording = false;
+let recognition = null;
+let transcript = '';
+let parsedData = {};
+
+// ─── Init ─────────────────────────────────────────────────────
+window.onload = () => {
+  const url = localStorage.getItem('ev_url');
+  const key = localStorage.getItem('ev_key');
+  const token = localStorage.getItem('ev_token');
+
+  if (url && key && token) {
+    document.getElementById('apiKey').value = key;
+    document.getElementById('sheetsUrl').value = url;
+    document.getElementById('secToken').value = token;
+    showMain();
+  }
+};
+
+// ─── Setup ────────────────────────────────────────────────────
+function showSetup() {
+  document.getElementById('setupScreen').style.display = 'block';
+  document.getElementById('mainScreen').style.display = 'none';
+}
+
+function showMain() {
+  const url = localStorage.getItem('ev_url') || '';
+  const short = url.length > 40 ? '...' + url.slice(-30) : url;
+  document.getElementById('urlPreview').textContent = short || '—';
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display = 'block';
+}
+
+async function testAndSave() {
+  const key = document.getElementById('apiKey').value.trim();
+  const url = document.getElementById('sheetsUrl').value.trim();
+  const token = document.getElementById('secToken').value.trim();
+
+  if (!key || !url || !token) {
+    showToast('Preenche todos os campos', 'error');
+    return;
+  }
+
+  document.getElementById('testBtnText').innerHTML = '<span class="spinner"></span> A testar ligação...';
+
+  const resultEl = document.getElementById('testResult');
+
+  try {
+    // Test Apps Script connection
+    const testUrl = `${url}?token=${encodeURIComponent(token)}`;
+    const res = await fetch(testUrl);
+    const data = await res.json();
+
+    if (data.status !== 'ok') throw new Error('Token inválido ou script inacessível');
+
+    // Save to localStorage
+    localStorage.setItem('ev_key', key);
+    localStorage.setItem('ev_url', url);
+    localStorage.setItem('ev_token', token);
+
+    resultEl.textContent = '✓ Ligação testada com sucesso — tudo pronto!';
+    resultEl.className = 'test-result ok';
+    resultEl.style.display = 'block';
+
+    setTimeout(() => showMain(), 1500);
+
+  } catch (err) {
+    resultEl.textContent = '✗ Erro: ' + err.message + '. Verifica a URL e o token.';
+    resultEl.className = 'test-result fail';
+    resultEl.style.display = 'block';
+  } finally {
+    document.getElementById('testBtnText').textContent = '✦ Testar e guardar';
+  }
+}
+
+// ─── Recording ────────────────────────────────────────────────
+function toggleRecording() {
+  if (isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    showToast('Reconhecimento de voz não suportado. Usa o Chrome.', 'error');
+    return;
+  }
+
+  recognition = new SR();
+  recognition.lang = 'pt-PT';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  let final = '';
+
+  recognition.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
+    }
+    transcript = final + interim;
+    const box = document.getElementById('transcriptBox');
+    box.textContent = transcript;
+    box.classList.add('has-text');
+    document.getElementById('interpretBtn').disabled = false;
+  };
+
+  recognition.onerror = e => {
+    if (e.error !== 'no-speech') showToast('Erro de voz: ' + e.error, 'error');
+    stopRecording();
+  };
+
+  recognition.onend = () => { if (isRecording) recognition.start(); };
+  recognition.start();
+
+  isRecording = true;
+  document.getElementById('recordBtn').classList.add('recording');
+  document.getElementById('recordLabel').textContent = 'A gravar — toca para parar';
+  document.getElementById('waveform').classList.add('active');
+  document.getElementById('statusDot').classList.add('active');
+}
+
+function stopRecording() {
+  if (recognition) { recognition.onend = null; recognition.stop(); }
+  isRecording = false;
+  document.getElementById('recordBtn').classList.remove('recording');
+  document.getElementById('recordLabel').textContent = 'Toca para ditar';
+  document.getElementById('waveform').classList.remove('active');
+  document.getElementById('statusDot').classList.remove('active');
+}
+
+// ─── AI Interpretation ────────────────────────────────────────
+async function interpretTranscript() {
+  const apiKey = localStorage.getItem('ev_key');
+  if (!apiKey) { showToast('API Key não configurada', 'error'); return; }
+  if (!transcript.trim()) { showToast('Sem transcrição para processar', 'error'); return; }
+
+  document.getElementById('interpretText').innerHTML = '<span class="spinner"></span> A interpretar...';
+  document.getElementById('interpretBtn').disabled = true;
+
+  const today = new Date().toLocaleDateString('pt-PT');
+
+  const prompt = `És um assistente médico especializado em endoscopia digestiva. Analisa o ditado e extrai os dados estruturados.
+
+Data de hoje: ${today}
+DITADO: "${transcript}"
+
+Responde APENAS com JSON válido, sem markdown nem texto adicional:
+{
+  "data": "DD/MM/AAAA (usa hoje se não mencionado: ${today})",
+  "nsc": "número processo ou null",
+  "nome": "nome do doente ou null",
+  "idade": "idade ou null",
+  "endoscopista": "nome ou null",
+  "origem": "origem referenciação ou null",
+  "orgao": "cólon/estômago/duodeno/esófago/etc ou null",
+  "localizacao": "localização no órgão ou null",
+  "tamanho": "tamanho em mm ou null",
+  "parede": "parede ou null",
+  "morfologia_paris": "Is/Ip/IIa/IIb/IIc/IIa+IIc/III ou null",
+  "classificacao_nice": "NICE 1/2/3 ou null",
+  "classificacao_jnet": "JNET 1/2A/2B/3 ou null",
+  "lst": "G-homogéneo/G-misto/NG-flat/NG-pseudodepressed/N/A ou null",
+  "tecnica_resseccao": "EMR hot/EMR cold/ESD/Polipectomia clássica/Técnica híbrida/FTRD ou null",
+  "tentativa_elevacao": "Sim/Não ou null",
+  "elevacao_satisfatoria": "Sim/Não/Parcial ou null",
+  "solucao_elevacao": "nome da solução ou null",
+  "ansa": "A frio/A quente ou null",
+  "fio": "Monofilamento/Trançada ou null",
+  "fragmentos": "número ou en bloc ou null",
+  "profundidade_escara": "DMI 0/I/II/III/IV/V ou null",
+  "fulguracao_bordos": "Sim/Não ou null",
+  "encerramento_escara": "Total/Parcial/Não ou null",
+  "lesao_muscular": "Sim/Não ou null",
+  "perfuracao": "Sim/Não ou null",
+  "frags_recuperados": "Sim/Não/Parcial ou null",
+  "histologia": "resultado ou null",
+  "primeira_revisao": "<3 meses/3-6 meses/>6 meses/6-12 meses/>12 meses ou null",
+  "lesao_residual_1": "Sim/Não ou null",
+  "tamanho_residual": "tamanho ou null",
+  "tecnica_residual": "técnica ou null",
+  "histologia_1_revisao": "histologia ou null",
+  "segunda_revisao": "data ou prazo ou null"
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const raw = data.content[0].text.replace(/```json|```/g, '').trim();
+    parsedData = JSON.parse(raw);
+
+    renderFields(parsedData);
+    document.getElementById('fieldsSection').style.display = 'block';
+    document.getElementById('fieldsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast('✓ ' + Object.values(parsedData).filter(v => v && v !== 'null').length + ' campos preenchidos', 'success');
+
+  } catch (err) {
+    showToast('Erro IA: ' + err.message, 'error');
+  } finally {
+    document.getElementById('interpretText').textContent = '✦ Interpretar com IA';
+    document.getElementById('interpretBtn').disabled = false;
+  }
+}
+
+function renderFields(data) {
+  const c = document.getElementById('fieldsContainer');
+  c.innerHTML = '';
+
+  FIELDS.forEach(f => {
+    const val = (data[f.key] && data[f.key] !== 'null') ? data[f.key] : '';
+    const row = document.createElement('div');
+    row.className = 'field-row';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'field-name';
+    nameEl.textContent = f.label;
+
+    const valWrapper = document.createElement('div');
+
+    if (f.options) {
+      const sel = document.createElement('select');
+      sel.className = 'field-input' + (val ? '' : ' empty');
+
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = ''; emptyOpt.textContent = '—';
+      sel.appendChild(emptyOpt);
+
+      f.options.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt; o.textContent = opt;
+        if (val && val.toLowerCase().includes(opt.toLowerCase())) o.selected = true;
+        sel.appendChild(o);
+      });
+
+      sel.onchange = () => {
+        parsedData[f.key] = sel.value || null;
+        sel.classList.toggle('empty', !sel.value);
+      };
+      valWrapper.appendChild(sel);
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'field-input' + (val ? '' : ' empty');
+      inp.value = val;
+      inp.placeholder = '—';
+      inp.oninput = () => {
+        parsedData[f.key] = inp.value || null;
+        inp.classList.toggle('empty', !inp.value);
+      };
+      valWrapper.appendChild(inp);
+    }
+
+    row.appendChild(nameEl);
+    row.appendChild(valWrapper);
+    c.appendChild(row);
+  });
+}
+
+// ─── Send to Sheet ────────────────────────────────────────────
+async function sendToSheet() {
+  const url = localStorage.getItem('ev_url');
+  const token = localStorage.getItem('ev_token');
+  if (!url || !token) { showToast('Configuração em falta', 'error'); return; }
+
+  const row = FIELDS.map(f => {
+    const v = parsedData[f.key];
+    return (v && v !== 'null') ? v : '';
+  });
+
+  document.getElementById('sendText').innerHTML = '<span class="spinner-light"></span> A guardar...';
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, row })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Erro desconhecido');
+
+    showToast('✓ Guardado na linha ' + data.row + '!', 'success');
+    setTimeout(resetForm, 2000);
+
+  } catch (err) {
+    // no-cors fallback
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, row })
+      });
+      showToast('✓ Enviado para a Sheet!', 'success');
+      setTimeout(resetForm, 2000);
+    } catch (err2) {
+      showToast('Erro ao guardar: ' + err.message, 'error');
+      document.getElementById('sendText').textContent = '↑ Guardar na Sheet';
+      document.getElementById('sendBtn').disabled = false;
+    }
+  }
+}
+
+function resetForm() {
+  transcript = '';
+  parsedData = {};
+  const box = document.getElementById('transcriptBox');
+  box.textContent = 'Dita o procedimento após carregar no microfone...';
+  box.classList.remove('has-text');
+  document.getElementById('fieldsSection').style.display = 'none';
+  document.getElementById('interpretBtn').disabled = true;
+  document.getElementById('sendText').textContent = '↑ Guardar na Sheet';
+  document.getElementById('sendBtn').disabled = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── Toast ────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
