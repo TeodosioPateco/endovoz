@@ -645,20 +645,15 @@ function startRecording() {
     return;
   }
 
+  // Usar sessões curtas sem continuous=true para evitar duplicação no Android
   recognition = new SR();
   recognition.lang = 'pt-PT';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-
-  let final = '';
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
   recognition.onresult = e => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-      else interim += e.results[i][0].transcript;
-    }
-    transcript = final + interim;
+    const newText = e.results[0][0].transcript;
+    transcript = transcript ? transcript + ' ' + newText : newText;
     const box = document.getElementById('transcriptBox');
     box.textContent = transcript;
     box.classList.add('has-text');
@@ -666,11 +661,20 @@ function startRecording() {
   };
 
   recognition.onerror = e => {
-    if (e.error !== 'no-speech') showToast('Erro de voz: ' + e.error, 'error');
-    stopRecording();
+    if (e.error === 'no-speech') {
+      // Reinicia automaticamente se não houve fala
+      if (isRecording) recognition.start();
+    } else if (e.error !== 'aborted') {
+      showToast('Erro de voz: ' + e.error, 'error');
+      stopRecording();
+    }
   };
 
-  recognition.onend = () => { if (isRecording) recognition.start(); };
+  // Reinicia automaticamente após cada frase até o utilizador parar
+  recognition.onend = () => {
+    if (isRecording) recognition.start();
+  };
+
   recognition.start();
 
   isRecording = true;
@@ -681,8 +685,12 @@ function startRecording() {
 }
 
 function stopRecording() {
-  if (recognition) { recognition.onend = null; recognition.stop(); }
   isRecording = false;
+  if (recognition) {
+    recognition.onend = null;
+    recognition.onerror = null;
+    recognition.stop();
+  }
   document.getElementById('recordBtn').classList.remove('recording');
   document.getElementById('recordLabel').textContent = 'Toca para ditar';
   document.getElementById('waveform').classList.remove('active');
